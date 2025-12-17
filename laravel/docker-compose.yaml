@@ -4,6 +4,7 @@ services:
   app:
     build: .
     container_name: laravel_app
+    restart: unless-stopped  # Auto-restart if container stops
     depends_on:
       - db
     volumes:
@@ -26,6 +27,7 @@ services:
   db:
     image: mysql:8.0
     container_name: laravel_db
+    restart: unless-stopped  # Auto-restart if container stops
     ports:
       - "3306:3306"
     environment:
