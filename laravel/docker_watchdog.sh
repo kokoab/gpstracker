@@ -5,13 +5,19 @@
 LOG_FILE="/home/ubuntu/gpstracker/laravel/watchdog.log"
 PROJECT_DIR="/home/ubuntu/gpstracker/laravel"
 
+# Navigate to project directory
+cd "$PROJECT_DIR" || exit 1
+
+# Initialize log file if it doesn't exist
+touch "$LOG_FILE"
+
 # Function to log messages
 log() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" >> "$LOG_FILE"
 }
 
-# Navigate to project directory
-cd "$PROJECT_DIR" || exit 1
+# Log startup
+log "🐕 Watchdog check started"
 
 # Check if containers are running
 check_container() {
@@ -78,5 +84,10 @@ if [ "$DISK_USAGE" -gt 85 ]; then
 fi
 
 # Keep log file size manageable (last 1000 lines)
-tail -n 1000 "$LOG_FILE" > "${LOG_FILE}.tmp" && mv "${LOG_FILE}.tmp" "$LOG_FILE"
+if [ -f "$LOG_FILE" ] && [ -s "$LOG_FILE" ]; then
+    tail -n 1000 "$LOG_FILE" > "${LOG_FILE}.tmp" && mv "${LOG_FILE}.tmp" "$LOG_FILE"
+fi
+
+# Log completion
+log "✅ Watchdog check completed"
 
