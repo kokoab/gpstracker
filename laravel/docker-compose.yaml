@@ -23,6 +23,20 @@ services:
     command: php artisan serve --host=0.0.0.0 --port=8000
     tty: true
     stdin_open: true
+    # Resource limits to prevent OOM crashes
+    deploy:
+      resources:
+        limits:
+          memory: 512M  # Limit to 512MB (half of t2.micro's 1GB)
+        reservations:
+          memory: 256M  # Reserve 256MB
+    # Health check (check if PHP process is running)
+    healthcheck:
+      test: ["CMD-SHELL", "php -r 'echo \"OK\";' || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
   db:
     image: mysql:8.0
@@ -35,6 +49,20 @@ services:
       - MYSQL_DATABASE=gps_tracker
     volumes:
       - db_data:/var/lib/mysql
+    # Resource limits to prevent OOM crashes
+    deploy:
+      resources:
+        limits:
+          memory: 384M  # Limit to 384MB
+        reservations:
+          memory: 128M  # Reserve 128MB
+    # Health check
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
 volumes:
   db_data:
