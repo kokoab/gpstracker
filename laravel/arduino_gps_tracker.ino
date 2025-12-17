@@ -20,7 +20,7 @@ SoftwareSerial gps(4, 5);  // GPS RX, TX
 
 // Configuration
 const char* DEVICE_ID = "BUS001";
-const char* SERVER_URL = "http://873269cbf4d930d08f7ce607a7ef1d4f.serveousercontent.com";  // Serveo tunnel (HTTP works!)
+const char* SERVER_URL = "http://54.254.135.119";  // AWS EC2 Instance (Port 80)
 const char* APN = "internet.globe.com.ph";  // TM uses Globe network (same APN)
 const int UPDATE_INTERVAL = 10000;  // Send every 10 seconds (10000ms)
 

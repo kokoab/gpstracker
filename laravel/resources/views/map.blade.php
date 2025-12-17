@@ -100,12 +100,101 @@
             font-size: 12px;
             color: #7f8c8d;
         }
+
+        /* Notification Styles */
+        .notification {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px 30px;
+            border-radius: 25px;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+            z-index: 10000;
+            font-weight: 600;
+            font-size: 15px;
+            animation: slideDown 0.3s ease-out;
+            display: none;
+            max-width: 400px;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateX(-50%) translateY(-20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateX(-50%) translateY(0);
+            }
+        }
+
+        /* Speedometer Styles */
+        .speed-indicator {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            padding: 12px 20px;
+            border-radius: 15px;
+            font-size: 16px;
+            font-weight: bold;
+            margin-top: 15px;
+            text-align: center;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .speed-value {
+            font-size: 28px;
+            font-weight: 800;
+            display: block;
+            margin: 5px 0;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .speed-label {
+            font-size: 12px;
+            opacity: 0.9;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* Clear Trail Button */
+        .clear-trail-btn {
+            width: 100%;
+            margin-top: 10px;
+            padding: 8px 12px;
+            background: #e74c3c;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .clear-trail-btn:hover {
+            background: #c0392b;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .clear-trail-btn:active {
+            transform: translateY(0);
+        }
     </style>
 </head>
 
 <body>
     <!-- Map Container -->
     <div id="map"></div>
+
+    <!-- Notification -->
+    <div id="notification" class="notification">
+        📍 Location Updated!
+    </div>
 
     <!-- Info Panel -->
     <div class="info-panel">
@@ -123,6 +212,17 @@
             <span class="info-label">Longitude:</span>
             <span class="info-value" id="longitude">---</span>
         </div>
+
+        <!-- Speedometer -->
+        <div class="speed-indicator">
+            <span class="speed-label">Current Speed</span>
+            <span class="speed-value" id="speed">0.00</span>
+            <span class="speed-label">km/h</span>
+        </div>
+
+        <!-- Clear Trail Button -->
+        <button class="clear-trail-btn" onclick="clearTrail()">🗑️ Clear Trail</button>
+
         <div class="last-update">
             <strong>Last Update:</strong><br>
             <span id="last-update">Never</span>
@@ -151,8 +251,46 @@
             popupAnchor: [0, -32]
         });
 
-        // Marker variable
+        // Variables for tracking
         let marker = null;
+        let pathCoordinates = []; // Store path coordinates for trail
+        let pathPolyline = null; // Polyline for displaying trail
+        let lastPosition = null; // For speed calculation
+        let lastUpdateTime = null; // For speed calculation
+
+        // Function to calculate distance between two points (Haversine formula)
+        function calculateDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371; // Earth's radius in km
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLon = (lon2 - lon1) * Math.PI / 180;
+            const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                Math.sin(dLon / 2) * Math.sin(dLon / 2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+            return R * c; // Distance in km
+        }
+
+        // Function to show notification
+        function showNotification(message = '📍 Location Updated!') {
+            const notification = document.getElementById('notification');
+            notification.textContent = message;
+            notification.style.display = 'block';
+
+            // Hide after 3 seconds
+            setTimeout(() => {
+                notification.style.display = 'none';
+            }, 3000);
+        }
+
+        // Function to clear trail
+        function clearTrail() {
+            pathCoordinates = [];
+            if (pathPolyline) {
+                map.removeLayer(pathPolyline);
+                pathPolyline = null;
+            }
+            showNotification('🗑️ Trail cleared!');
+        }
 
         // Fetch and update location
         async function updateLocation() {
@@ -178,14 +316,55 @@
                     document.getElementById('longitude').textContent = longitude.toFixed(6);
                     document.getElementById('last-update').textContent = new Date(updated_at).toLocaleString();
 
+                    const latLng = [parseFloat(latitude), parseFloat(longitude)];
+                    const currentTime = new Date(updated_at);
+
+                    // Calculate speed if we have previous position
+                    if (lastPosition && lastUpdateTime) {
+                        const distance = calculateDistance(
+                            lastPosition[0], lastPosition[1],
+                            latLng[0], latLng[1]
+                        );
+                        const timeDiff = (currentTime - lastUpdateTime) / 1000 / 3600; // hours
+                        const speed = timeDiff > 0 ? (distance / timeDiff).toFixed(2) : 0;
+
+                        document.getElementById('speed').textContent = speed;
+
+                        console.log(`🚗 Speed: ${speed} km/h`);
+                    } else {
+                        document.getElementById('speed').textContent = '0.00';
+                    }
+
+                    // Add to path trail
+                    pathCoordinates.push(latLng);
+
+                    // Draw or update polyline (path trail)
+                    if (pathPolyline) {
+                        pathPolyline.setLatLngs(pathCoordinates);
+                    } else {
+                        pathPolyline = L.polyline(pathCoordinates, {
+                            color: '#3498db',
+                            weight: 4,
+                            opacity: 0.8,
+                            smoothFactor: 1,
+                            dashArray: '10, 5',
+                            lineJoin: 'round',
+                            lineCap: 'round'
+                        }).addTo(map);
+                    }
+
+                    // Show notification if position changed
+                    if (lastPosition &&
+                        (lastPosition[0] !== latLng[0] || lastPosition[1] !== latLng[1])) {
+                        showNotification(`📍 New location: ${latitude.toFixed(4)}°, ${longitude.toFixed(4)}°`);
+                    }
+
                     // Update status
                     const statusEl = document.getElementById('status');
                     statusEl.textContent = 'Active';
                     statusEl.className = 'status active';
 
                     // Update or create marker
-                    const latLng = [parseFloat(latitude), parseFloat(longitude)];
-
                     console.log('🎯 Marker at:', latLng);
 
                     if (marker) {
@@ -202,6 +381,10 @@
                         // Zoom to marker
                         map.setView(latLng, 15);
                     }
+
+                    // Store current position for next calculation
+                    lastPosition = latLng;
+                    lastUpdateTime = currentTime;
 
                 } else {
                     // No data available
